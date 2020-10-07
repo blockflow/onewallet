@@ -47,7 +47,10 @@
             </select>
           </label>
         </div>
-        <div :class="{ row: !isToken, 'token-row': isToken }">
+        <div
+          :class="{ row: !isToken, 'token-row': isToken }"
+          class="amount-row"
+        >
           <label class="input-label" :class="{ amount: !isToken }">
             Amount
             <input
@@ -60,19 +63,6 @@
               v-model="amount"
               v-on:keyup.enter="checkContactExist"
             />
-            <div
-              class="maximum-label"
-              v-show="!loading"
-              @click="setMaxBalance"
-              v-tooltip.bottom="'Max amount to send excluding network fee'"
-            >
-              Max:
-              {{
-                formatBalance(getMaxBalance, selectedToken.decimals) +
-                  " " +
-                  selectedToken.symbol
-              }}
-            </div>
           </label>
           <label v-if="!isToken" class="input-label token">
             Token
@@ -87,7 +77,20 @@
             </select>
           </label>
         </div>
-        <div class="row">
+        <div
+          class="maximum-label"
+          v-show="!loading"
+          @click="setMaxBalance"
+          v-tooltip.bottom="'Max amount to send excluding network fee'"
+        >
+          Max:
+          {{
+            formatBalance(getMaxBalance, selectedToken.decimals) +
+              " " +
+              selectedToken.symbol
+          }}
+        </div>
+        <div class="row gasfee-row">
           <label class="input-label gas-price">
             Gas Price
             <input
@@ -122,6 +125,15 @@
               :value="`${getGasFee} ONE`"
             />
           </label>
+        </div>
+        <div
+          class="estimategas-label"
+          v-show="!loading"
+          @click="setNetworkFee"
+          v-tooltip.bottom="'Estimate gas fee for this transaction'"
+        >
+          Estimate Gas Fee:
+          {{ estimateGasFee }} ONE
         </div>
         <label class="input-label" :class="{ disabled: isHRCToken }">
           Input Data
@@ -282,12 +294,13 @@ import {
   transferOne,
   getNetworkLink,
   sendTransction,
+  estimateGas,
 } from "services/AccountService";
 import { sendToken } from "services/Hrc20Service";
 import { isValidAddress } from "@harmony-js/utils";
 import account from "mixins/account";
 import helper from "mixins/helper";
-import ContactSelect from "./ContactSelect";
+import ContactSelect from "components/ContactSelect";
 import {
   signTransactionWithLedger,
   signHRCTransactionWithLedger,
@@ -324,6 +337,7 @@ export default {
     newAddress: "",
     recipient: null,
     gasPrice: 1,
+    estimateGasFee: 0,
     gasLimit: 25000,
     inputData: "",
     selectedToken: { symbol: "ONE", decimals: 18, isMainToken: true },
@@ -394,6 +408,20 @@ export default {
     }
   },
   watch: {
+    async recipient() {
+      if (this.recipient.address)
+        this.estimateGasFee = await estimateGas(
+          this.recipient.address,
+          this.inputData
+        );
+    },
+    async inputData() {
+      if (this.recipient.address)
+        this.estimateGasFee = await estimateGas(
+          this.recipient.address,
+          this.inputData
+        );
+    },
     selectedToken() {
       this.toShard = 0;
       this.setGasLimit();
@@ -433,6 +461,9 @@ export default {
         address: this.newAddress,
       });
       this.showConfirmDialog();
+    },
+    setNetworkFee(e) {
+      e.preventDefault();
     },
     setMaxBalance(e) {
       e.preventDefault();
@@ -758,6 +789,7 @@ h3 {
 }
 .maximum-label {
   color: red;
+  cursor: pointer;
   font-size: 12px;
   font-style: italic;
   margin-top: 3px;
@@ -766,7 +798,18 @@ h3 {
 .gray {
   color: #bbb;
 }
-
+.gasfee-row,
+.amount-row {
+  margin-bottom: -13px;
+}
+.estimategas-label {
+  color: #113df0;
+  cursor: pointer;
+  font-size: 12px;
+  font-style: italic;
+  margin-top: 3px;
+  margin-left: 5px;
+}
 .invoice-content {
   margin-top: 1.5rem;
   margin-bottom: 1.5rem;

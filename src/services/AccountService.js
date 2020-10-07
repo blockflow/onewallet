@@ -6,7 +6,8 @@ import {
   HarmonyAddress,
 } from "@harmony-js/crypto";
 import { stringToHex } from "./CryptoService";
-const { isValidAddress } = require("@harmony-js/utils");
+const { isValidAddress, Unit } = require("@harmony-js/utils");
+import { HttpProvider, Messenger } from "@harmony-js/network";
 import { Harmony } from "@harmony-js/core";
 var currentNetwork = "";
 
@@ -33,6 +34,21 @@ export function getHarmony() {
   }
 
   return harmony;
+}
+
+import BN from "bn.js";
+export async function estimateGas(to, inputData) {
+  const harmony = getHarmony();
+  const data = !inputData.match(/^0x([a-f0-9])*$/)
+    ? stringToHex(inputData)
+    : inputData;
+  let messenger = new Messenger(new HttpProvider("https://api.s0.b.hmny.io"));
+  const res = await messenger.send("hmy_estimateGas", [{ to, data }]);
+  const gas = await harmony.blockchain.estimateGas({
+    to,
+    data,
+  });
+  return Unit.Wei(gas.result).toGwei();
 }
 
 export function validatePrivateKey(privateKey) {
